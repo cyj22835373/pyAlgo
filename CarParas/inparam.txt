@@ -1,0 +1,14 @@
+633.68 357.52
+541.06 23.82 62.27 -116.89 57.03
+1.008148
+
+# cx cy   (center)
+# k1 k3 k5 k7 k9   (radial distortion)
+# p1 p2   (tangential distortion)
+# asp
+
+
+
+
+
+
