@@ -5,6 +5,9 @@ import cv2
 import akshare as ak
 import datetime
 from datetime import datetime
+import os
+from configparser import ConfigParser
+
 def MyAlgoTest():
     print('hello myalgo!')
 def ReadPara(path,InOrEx):
@@ -313,3 +316,291 @@ def UpdateUsStocksData(nlist,basepath):
         tempDF=ak.stock_us_daily(symbol=n, adjust="qfq")
         tempDF.to_csv(basepath+n+'.csv')
         print(n,i)
+        
+import requests   
+import json
+import time
+
+def write_to_ini(key, string, ini_file):
+    # 创建 ConfigParser 对象
+    config = ConfigParser()
+
+    # 读取 .ini 文件
+    config.read(ini_file)
+
+    # 检查 'TempParas' section 是否存在，如果不存在则添加
+    if not config.has_section('TempParas'):
+        config.add_section('TempParas')
+
+    # 将字符串写入 'TempParas' section 下的键
+    config.set('TempParas', key, string)
+
+    # 写入 .ini 文件
+    with open(ini_file, 'w') as f:
+        config.write(f)
+class IPer():
+    ipurl = 'http://ip-api.com/json/'
+    defaultUtlType = 'ipApi'
+    localIP = '172.22.0.1'
+    clash_secret = '1223e104-3f56-48fb-8e29-d62fb5ef4f05'
+    clash_Port = 'http://127.0.0.1:12082/'
+
+    
+    @staticmethod
+    def send_request(url, method, data=None):
+        if method == 'GET':
+            response = requests.get(url)
+        elif method == 'POST':
+            response = requests.post(url, data=data)
+        else:
+            print("Invalid method. Please choose either 'GET' or 'POST'.")
+            return
+
+        return response
+    @staticmethod
+    def SetHttpProxy(httpProxy):
+        os.environ['http_proxy'] = httpProxy
+        os.environ['https_proxy'] = httpProxy 
+    @staticmethod
+    def ReSetHttpProxy():
+        os.environ.pop('http_proxy', None)
+        os.environ.pop('https_proxy', None)
+    @staticmethod      
+    def GetIpOnInternet():
+        start_time = time.time()
+        try:
+            response = requests.get('https://httpbin.org/ip')
+        except requests.exceptions.SSLError:
+            ans = "No Connection"
+            #print("No Connection")
+            end_time = time.time()
+            return ans,format(end_time - start_time)
+        end_time = time.time()
+        try:
+            ans = response.json()['origin']
+        except json.JSONDecodeError:
+            ans = "Error"
+            print("JSONDecodeError")
+        return ans,format(end_time - start_time)
+    def SetGetIpUrl(self, url):
+        self.ipurl = url
+    def SetClashParams(self,secret,ipPort):
+        self.clash_secret = self.clash_secret
+        self.clash_Port = ipPort
+    def GetClashProxies(self):
+        api_url = self.clash_Port + 'proxies'
+        headers = {
+            'Authorization': f'Bearer {self.clash_secret}',
+            'Content-Type': 'application/json',
+        }
+        # 发送 GET 请求
+        response = requests.get(api_url, headers=headers)
+        return response.json()
+    def GetProxiesNameFormSelecter(self,selectoerName,area = None):
+        a=self.GetClashProxies()
+        plist = a['proxies'][selectoerName]['all']
+        delaylist = []
+        totallist = []
+        filterlist = []
+        for i in plist:
+            b=a['proxies'][i]
+            delaylist.append(b['history'][1]['delay'])
+        for i,p in enumerate(plist):
+            totallist.append((plist[i],delaylist[i]))
+        
+        if area == None:
+            return totallist
+        else:
+            for i in totallist:
+                if area in i[0]:
+                    filterlist.append(i)
+            return filterlist
+    def GetClashSelecters(self):
+        a=self.GetClashProxies()
+        selecterList = []
+        for p in a['proxies'].keys():
+            b=a['proxies'][p]
+            if(b['type']=='Selector'):
+                selecterList.append(b['name'])
+        return selecterList
+    def SetClashProxy(self,GoupName,proxyName,clash_secret,clash_Port):
+        api_url = clash_Port + 'proxies/'+GoupName
+        headers = {
+            'Authorization': f'Bearer {clash_secret}',
+            'Content-Type': 'application/json',
+        }
+        data = {
+            'name':proxyName,
+        }
+        response = requests.put(api_url, headers=headers, json=data)
+        if response.status_code == 204:
+            return 1
+        else:
+            return -1
+    def GetIPinfo(self, ip):
+        url = self.ipurl + ip
+        method = 'GET'  # 或者 'POST'
+        data = {'key': 'value'}  # 如果是POST请求，你可以发送一些数据
+        response = self.send_request(url, method, data)
+        if self.defaultUtlType =='ipApi':
+        
+            try:
+                response = json.loads(response.text)
+            except json.JSONDecodeError:
+                return ["error"]
+            
+            return response
+    def GetAnIPFormIp2w():
+        return 1
+    #申请一个IP
+    def GetTodayListFormIp2w(self,localIp):
+        url="http://"+localIp+":200/ip/get_todaylist"
+        data = {'key': 'value'}  # 如果是POST请求，你可以发送一些数据
+        #print(url)
+        response = self.send_request(url, "GET", data)
+        try:
+            response = json.loads(response.text)
+        except json.JSONDecodeError:
+            return ["error"]
+        original_list = response['data']
+        response =[d for d in original_list if d['is_online'] != False]
+        return response
+    def ReBingIp2W(self,localip,ip,port):
+        url = "http://"+localip+":200/ip/set_todaylist_session?ip="+ip+"&port="+str(port)
+        #print(url)
+        method = 'GET'  # 或者 'POST'
+        data = {'key': 'value'}  # 如果是POST请求，你可以发送一些数据
+        response = self.send_request(url, method, data)
+        #response = json.loads(response.text)
+        return response
+    def RequestIpIp2w_city(self,localip,city='New York City',prot = 45000):
+        
+        country=""
+        state=""
+        if city == 'New York City':
+            country='US'
+            state='New York'
+        elif city == 'Hong Kong':
+            country='HK'
+            state='Central and Western'
+        elif city == 'Tokyo':
+            country='JP'
+            state='Tokyo'
+        elif city == 'Toronto':
+            
+            country='CA'
+            state='Ontario'
+        elif city == 'Berlin':
+            country='DE'
+            state='Berlin'
+        return self.RequestIpIp2w(localip,country=country,state=state,city=city)
+    def RequestIpIp2w(self,localip,country='US',state='New York',city='New York City',isp="random",port=45000):
+        url = "http://"+localip+":200/ip/numerous_bind?num=1&country="+country+"&state="+state+"&"+"city="+city+"&"+"isp="+isp+"&zip=random&t=txt&port="+str(port)
+        print(url)
+        method = 'GET'  # 或者 'POST'
+        data = {'key': 'value'}  # 如果是POST请求，你可以发送一些数据
+        response = self.send_request(url, method, data)
+        return response.text
+    def GetCurrentIpIfAvailable(self,ip,proxy = 'http://127.0.0.1:8118',port = 45000):
+         #测试当前所有IP的延迟
+        self.ReSetHttpProxy()
+        iplist = self.GetTodayListFormIp2w(ip) #获得IPlist
+        Currentid=0
+        if iplist[0] == 'error':
+            return ["error"]
+        aIpList = []
+        
+        for i,ipinfo in enumerate(iplist):
+            
+            if ipinfo['bind_port']==45000:
+                print(ipinfo)
+                Currentid = i
+        print(Currentid)
+        ipinfo = iplist[Currentid]
+        print(ipinfo)
+        max_retries = 3
+
+        for i in range(max_retries):
+            a,lay=self.GetIpOnInternet()
+            if a != 'No Connection':
+                if a == "JSONDecodeError":
+                    a, lay = self.GetIpOnInternet()
+                    print(a, lay)
+                    if a != "JSONDecodeError":
+                        self.ReSetHttpProxy()
+                        return ipinfo['ip'], lay
+                    else:
+                        if i < max_retries - 1:  # if it's not the last retry
+                            continue  # try again
+                        else:  # if it's the last retry
+                            self.ReSetHttpProxy()
+                            return -1,-1
+                else:
+                    self.ReSetHttpProxy()
+                    return ipinfo['ip'], lay
+            else:
+                self.ReSetHttpProxy()
+                print("No connection")
+                return -1,-1
+
+        '''self.SetHttpProxy(proxy)
+        a,lay=self.GetIpOnInternet()
+        if a != 'No Connection':
+            if a == "JSONDecodeError":
+                a,lay=self.GetIpOnInternet()
+                if a !="JSONDecodeError":
+                    self.ReSetHttpProxy()
+                    return ipinfo['ip'],lay
+                else:
+                    self.ReSetHttpProxy()
+                    return -1
+                     
+            else:
+               self.ReSetHttpProxy()
+               return ipinfo['ip'],lay
+        else:
+            self.ReSetHttpProxy()
+            return -1'''
+        self.ReSetHttpProxy()
+    def GetAvailableIPs(self,ip,proxy = 'http://127.0.0.1:8118',port = 45000):
+        #测试当前所有IP的延迟
+        self.ReSetHttpProxy()
+        iplist = self.GetTodayListFormIp2w(ip) #获得IPlist
+        if iplist[0] == 'error':
+            return ["error"]
+        aIpList = []
+        
+        for i,ipinfo in enumerate(iplist):
+            if ipinfo['bind_port']==45000:
+                Currentid = i
+        a=iplist[0]
+        iplist[0] = iplist[i]
+        iplist[i] = a
+        for i,ipinfo in enumerate(iplist):
+            print(ipinfo)
+            self.ReSetHttpProxy()
+            if i>0:
+                a=self.ReBingIp2W(ip,ipinfo['ip'],port)
+            self.SetHttpProxy(proxy)
+            a,lay=self.GetIpOnInternet()
+            if a != 'No Connection':
+                if a == "JSONDecodeError":
+                    a,lay=self.GetIpOnInternet()
+                    if a !="JSONDecodeError":
+                        aIpList.append((ipinfo['ip'],lay))
+                        print(a,lay)
+                    else:
+                       
+                        aIpList.append("JSONDecodeError")
+                         
+                else:
+                    aIpList.append((ipinfo['ip'],lay))
+                    print(a,lay)
+            else:
+                aIpList.append("No Connection")
+        self.ReSetHttpProxy()
+        return aIpList
+
+
+
+        
